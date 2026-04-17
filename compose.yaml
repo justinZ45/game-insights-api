@@ -1,0 +1,21 @@
+name: game-insights-api
+
+services:
+  db:
+    image: postgres
+    container_name: game-insights-db
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: game-insights-dev
+      POSTGRES_DB: game-insights-db
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - /Users/justinzaluk/Desktop/Volumes/postgres:/var/lib/postgresql
+
+ 
+    
