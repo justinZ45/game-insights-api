@@ -43,6 +43,6 @@ CREATE TABLE game_genres (
 -- Junction/bridge table (map game id to publisher id for lookup)
 CREATE TABLE game_publishers (
     game_id INT REFERENCES games(game_id) ON DELETE CASCADE,
-    genre_id INT REFERENCES publishers(publisher_id) ON DELETE CASCADE,
+    publisher_id INT REFERENCES publishers(publisher_id) ON DELETE CASCADE,
     PRIMARY KEY (game_id, publisher_id)
 );
