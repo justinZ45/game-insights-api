@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "game-insights-api"
+version = "1.0.0"
+readme = "README.md"
+description = "Simple side project to store video game data and expose it through a custom API"
+#+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/justinZ45/game-insights-api"
+
+[project.scripts]
+gia = "src.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*", "db*"]

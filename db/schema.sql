@@ -22,6 +22,7 @@ CREATE TABLE game_lengths (
     avg_hours FLOAT,
     leisure_hours FLOAT,
     median_hours FLOAT,
+    rushed_hours FLOAT,
     num_players_polled INT
 );
 -- Lookup table (one game -> many genres)
