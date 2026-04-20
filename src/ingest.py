@@ -1,5 +1,5 @@
 import json
-from db import Database, Game, GameLength, Genre, Publisher, GameGenre, GamePublisher
+from db import Game, GameLength, Genre, Publisher, GameGenre, GamePublisher
 from sqlalchemy.exc import OperationalError
 
 
@@ -33,7 +33,7 @@ def clean_data(data):
     publisher_cache = {}  # avoid duplicate publisher lookups: {name: Publisher object}
 
     for game in data:
-        # --- clean core game fields ---
+        # clean core game fields
         review_score = game["Metrics"]["Review Score"]
         review_score = max(0, min(100, review_score))  # clip between 0 and 100
 

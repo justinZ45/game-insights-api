@@ -101,18 +101,22 @@ def main():
     db_parser = gia_subparsers.add_parser("db", help="database utilities")
     db_subparsers = db_parser.add_subparsers(title="subcommands", dest="db_subcommands")
 
-    # db status
+    # --- db status ---
     status_parser = db_subparsers.add_parser(
         "status", help="get connection status to db"
     )
+
+    # detailed output
     status_parser.add_argument(
         "-v", "--verbose", help="verbose status output", action="store_true"
     )
 
-    # db reset
+    # --- db reset subcommand ---
     reset_parser = db_subparsers.add_parser(
         "reset", help="reset (drop & recreate) schema or truncate table"
     )
+
+    # target (what to reset in db)
     reset_parser.add_argument(
         "target", help="target of db reset", choices=["schema", "table"]
     )
