@@ -1,12 +1,13 @@
 import argparse
 from importlib.metadata import version
 from db import Database
+from src.ingest import ingest_data
 
-# single shared instance — avoids creating multiple engines
+# single shared db instance
 db = Database()
 
 
-def db_status(args):
+def handle_db_status(args):
     """Handles the db status subcommand. Prints connection status and optional verbose metadata."""
     conn, db_dict = db.get_db_status(args.verbose)
 
@@ -33,7 +34,7 @@ def reset_schema():
     print("all tables have been dropped/created again!")
 
 
-def db_reset(args):
+def handle_db_reset(args):
     """Handles the db reset subcommand. Routes to schema or table reset based on target."""
     reset_target = args.target.strip()
     table_name = args.name
@@ -65,6 +66,11 @@ def db_reset(args):
                 db.truncate_table(table_name)
 
 
+def handle_ingest(args):
+    """Handles the ingest subcommand. Source data file specified by input with flag."""
+    ingest_data(args.file, db)
+
+
 def main():
     """Entry point for the gia CLI. Builds the argument parser and routes to the correct handler."""
 
@@ -82,6 +88,14 @@ def main():
 
     # top level subcommands: db, ingest
     gia_subparsers = parser.add_subparsers(title="subcommands", dest="gia_subcommands")
+
+    # --- ingest subcommand ---
+    ingest_parser = gia_subparsers.add_parser("ingest", help="loading data to db")
+
+    # file to ingest from
+    ingest_parser.add_argument(
+        "-f", "--file", help="path to file to ingest to db", action="store"
+    )
 
     # --- db subcommand ---
     db_parser = gia_subparsers.add_parser("db", help="database utilities")
@@ -108,8 +122,10 @@ def main():
         nargs="?",
         help="applies ONLY to reset table. Enter [.] to truncate all tables",
     )
-    reset_parser.set_defaults(func=db_reset)
-    status_parser.set_defaults(func=db_status)
+    reset_parser.set_defaults(func=handle_db_reset)
+    status_parser.set_defaults(func=handle_db_status)
+    ingest_parser.set_defaults(func=handle_ingest)
+
     args = parser.parse_args()
 
     # route to the correct handler, or print help if no subcommand given

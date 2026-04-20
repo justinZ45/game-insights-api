@@ -122,13 +122,6 @@ class Database:
         except OperationalError:
             return False, db_dict
 
-    @retry_conn(num_retries=3)
-    def execute_sql(self, sql):
-        """Executes a raw SQL string against the database. Retries on connection failure."""
-        with engine.connect() as conn:
-            conn.execute(text(sql))
-            conn.commit()
-
     def create_schema(self):
         """Creates all database tables defined in the ORM models."""
 

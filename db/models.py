@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, String, ForeignKey, Float
+from sqlalchemy import Integer, String, ForeignKey, Numeric
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from typing import Optional
 
@@ -30,8 +30,8 @@ class Game(Base):
     is_licensed: Mapped[Optional[bool]]
     is_sequel: Mapped[Optional[bool]]
     review_score: Mapped[Optional[int]]
-    sales: Mapped[Optional[float]]
-    used_price: Mapped[Optional[float]]
+    sales_millions_usd: Mapped[Optional[float]] = mapped_column(Numeric(10, 2))
+    used_price_usd: Mapped[Optional[float]] = mapped_column(Numeric(7, 2))
     console: Mapped[Optional[str]] = mapped_column(String(255))
     esrb_rating: Mapped[Optional[str]] = mapped_column(String(5))
     is_re_release: Mapped[Optional[bool]]
@@ -52,10 +52,12 @@ class GameLength(Base):
         ForeignKey("games.game_id", ondelete="CASCADE")
     )
     playstyle: Mapped[Optional[str]] = mapped_column(String(255))
-    avg_hours: Mapped[Optional[float]] = mapped_column(Float)
-    leisure_hours: Mapped[Optional[float]] = mapped_column(Float)
-    median_hours: Mapped[Optional[float]] = mapped_column(Float)
-    rushed_hours: Mapped[Optional[float]] = mapped_column(Float)
+    avg_hours: Mapped[Optional[float]] = mapped_column(Numeric(precision=6, scale=2))
+    leisure_hours: Mapped[Optional[float]] = mapped_column(
+        Numeric(precision=6, scale=2)
+    )
+    median_hours: Mapped[Optional[float]] = mapped_column(Numeric(precision=6, scale=2))
+    rushed_hours: Mapped[Optional[float]] = mapped_column(Numeric(precision=6, scale=2))
     num_players_polled: Mapped[Optional[int]] = mapped_column(Integer)
 
 
