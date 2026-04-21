@@ -1,8 +1,9 @@
 from db.models import Base, Game, GameLength, Genre, Publisher, GameGenre, GamePublisher
-from sqlalchemy import create_engine, text, inspect, delete
+from sqlalchemy import create_engine, text, inspect, delete, select, func
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
+from contextlib import contextmanager
 import os
 import time
 
@@ -74,6 +75,18 @@ class Database:
     def get_session(self):
         """Returns a new SQLAlchemy session instance."""
         return self.Session()
+
+    @contextmanager
+    def transaction(self):
+        """Context manager that handles session lifecycle, commit, and error handling."""
+        try:
+            with self.get_session() as session:
+                yield session
+                session.commit()
+        except OperationalError:
+            print("Could not connect to db. Is Docker running?")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
 
     def get_db_status(self, verbose: bool):
         """
@@ -162,37 +175,31 @@ class Database:
                 execution_options={"synchronize_session": False},
             )
         else:
-            print(f"User-specified table '{table}' does not exist!")
+            raise ValueError(f"Unknown table '{table}'")
 
     def truncate_table(self, table):
-        """
-        truncates a specified table
-
-        Args:
-            table: specific table name to delete/truncate
-
-        Raises:
-            Exception: If unsuccessful connection, raise OperationalError
-        """
+        """truncates a specified table"""
         table = table.strip().lower()
-
-        try:
-            with self.get_session() as session:
-                self._delete_table(session, table)
-                session.commit()
-                print(f"Table '{table}' truncated successfully!")
-        except OperationalError:
-            print("Could not connect to db. Is Docker running?")
+        with self.transaction() as session:
+            self._delete_table(session, table)
+            print(f"Table '{table}' truncated successfully!")
 
     def truncate_all(self):
-        """truncates all tables in the db."""
-        try:
-            with self.get_session() as session:
-                for table in reversed(Base.metadata.sorted_tables):
-                    self._delete_table(session, table.name)
-                session.commit()
-                print(
-                    f"All data in {list(reversed(Base.metadata.tables))} was truncated/deleted! "
+        """Truncates all tables in correct dependency order."""
+        with self.transaction() as session:
+            for table in reversed(Base.metadata.sorted_tables):
+                self._delete_table(session, table.name)
+            print("All tables truncated successfully!")
+
+    def get_table_count(self, table):
+        """Returns the row count for a specified table."""
+        table = table.strip().lower()
+        with self.transaction() as session:
+            if table in TABLE_MAP:
+                return session.scalar(
+                    select(func.count()).select_from(TABLE_MAP[table])
                 )
-        except OperationalError:
-            print("Could not connect to db. Is Docker running?")
+            else:
+                raise ValueError(f"Unknown table '{table}'")
+
+    # def get_all_cols(self, table, limit_cnt):

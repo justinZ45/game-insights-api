@@ -66,6 +66,17 @@ def handle_db_reset(args):
                 db.truncate_table(table_name)
 
 
+def handle_query(args):
+    """Handles the query subcommand. Allows quick insights into db table rows"""
+    if args.count:
+        row_cnt = db.get_table_count(args.name)
+        print(f"{args.name} has {row_cnt} rows")
+    # else:
+    #     results = db.get_all_cols(args.name, args.limit)
+    #     for row in results:
+    #         print(dict(row))
+
+
 def handle_ingest(args):
     """Handles the ingest subcommand. Source data file specified by input with flag."""
     ingest_data(args.file, db)
@@ -101,6 +112,30 @@ def main():
     db_parser = gia_subparsers.add_parser("db", help="database utilities")
     db_subparsers = db_parser.add_subparsers(title="subcommands", dest="db_subcommands")
 
+    # --- db query ---
+    query_parser = db_subparsers.add_parser(
+        "query",
+        help="query information from specified db table",
+        usage="gia query table_name [-c] [-l n]",
+    )
+
+    # target (which table to query)
+    query_parser.add_argument(
+        "name",
+        metavar="table_name",
+        help="name of table to query",
+    )
+
+    # get count of specified table
+    query_parser.add_argument(
+        "-c", "--count", help="count of table rows", action="store_true"
+    )
+
+    # limit query
+    query_parser.add_argument(
+        "-l", "--limit", type=int, metavar="n", help="limit results"
+    )
+
     # --- db status ---
     status_parser = db_subparsers.add_parser(
         "status", help="get connection status to db"
@@ -126,6 +161,8 @@ def main():
         nargs="?",
         help="applies ONLY to reset table. Enter [.] to truncate all tables",
     )
+
+    query_parser.set_defaults(func=handle_query)
     reset_parser.set_defaults(func=handle_db_reset)
     status_parser.set_defaults(func=handle_db_status)
     ingest_parser.set_defaults(func=handle_ingest)

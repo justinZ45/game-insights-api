@@ -7,7 +7,11 @@ name = "game-insights-api"
 version = "1.0.0"
 readme = "README.md"
 description = "Simple side project to store video game data and expose it through a custom API"
-#+dependencies = []
+dependencies = [
+"psycopg2-binary==2.9.11",
+"SQLAlchemy==2.0.49",
+"typing_extensions==4.15.0"
+]
 
 [project.urls]
 Repository = "https://github.com/justinZ45/game-insights-api"
