@@ -1,7 +1,9 @@
-import argparse
 from importlib.metadata import version
 from db import Database
 from src.ingest import ingest_data
+import pprint
+import argparse
+
 
 # single shared db instance
 db = Database()
@@ -71,10 +73,16 @@ def handle_query(args):
     if args.count:
         row_cnt = db.get_table_count(args.name)
         print(f"{args.name} has {row_cnt} rows")
-    # else:
-    #     results = db.get_all_cols(args.name, args.limit)
-    #     for row in results:
-    #         print(dict(row))
+    else:
+        results = db.get_all_cols(args.name, args.limit)  # full table query with limit
+        if results is None:
+            return
+        if len(results) == 0:
+            print(f"{args.name} has no data!")
+        else:
+            for row in results:
+                pprint.pp(row)
+                print("-" * 40)
 
 
 def handle_ingest(args):

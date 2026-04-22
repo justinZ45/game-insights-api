@@ -10,7 +10,11 @@ description = "Simple side project to store video game data and expose it throug
 dependencies = [
 "psycopg2-binary==2.9.11",
 "SQLAlchemy==2.0.49",
-"typing_extensions==4.15.0"
+"typing_extensions==4.15.0",
+"pydantic==2.13.3",
+"pydantic_core==2.46.3",
+"python-dotenv==1.2.2",
+"typing-inspection==0.4.2",
 ]
 
 [project.urls]

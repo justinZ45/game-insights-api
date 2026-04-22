@@ -1,4 +1,12 @@
-from db.models import Base, Game, GameLength, Genre, Publisher, GameGenre, GamePublisher
+from db.orm_models import (
+    Base,
+    Game,
+    GameLength,
+    Genre,
+    Publisher,
+    GameGenre,
+    GamePublisher,
+)
 from sqlalchemy import create_engine, text, inspect, delete, select, func
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
@@ -202,4 +210,20 @@ class Database:
             else:
                 raise ValueError(f"Unknown table '{table}'")
 
-    # def get_all_cols(self, table, limit_cnt):
+    def get_all_cols(self, table, limit_cnt):
+        """Returns the row count for a specified table."""
+
+        if limit_cnt == 0 or limit_cnt is None:
+            limit_cnt = 5
+
+        table = table.strip().lower()
+        with self.transaction() as session:
+            if table in TABLE_MAP:
+                table_obj = Base.metadata.tables[table]
+                results = (
+                    session.execute(select(table_obj).limit(limit_cnt)).mappings().all()
+                )
+                return [dict(row) for row in results]
+
+            else:
+                raise ValueError(f"Unknown table '{table}'")

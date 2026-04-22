@@ -1,6 +1,8 @@
 import json
 from db import Game, GameLength, Genre, Publisher, GameGenre, GamePublisher
 from sqlalchemy.exc import OperationalError
+from src import GameJsonInput
+from pydantic import ValidationError
 
 
 def open_file(filename: str):
@@ -33,45 +35,58 @@ def clean_data(data):
     publisher_cache = {}  # avoid duplicate publisher lookups: {name: Publisher object}
 
     for game in data:
+        try:
+            game = GameJsonInput.model_validate(
+                game, by_alias=True
+            )  # validate game dict using pydantic model
+
+        except ValidationError as e:
+            title = (
+                game.get("Title", "Unknown") if isinstance(game, dict) else "Unknown"
+            )
+            print(f"Skipping invalid game, title: {title}: {e}")
+            continue
+
         # clean core game fields
-        review_score = game["Metrics"]["Review Score"]
+        review_score = game.metrics.review_score
         review_score = max(0, min(100, review_score))  # clip between 0 and 100
 
         # ensure rating adheres to ESRB standards, default to RP (rating pending) if unknown
-        esrb = str(game["Release"]["Rating"]).upper().strip()
+        esrb = str(game.release.esrb_rating).upper().strip()
         esrb = esrb if esrb in ESRB_RATINGS else "RP"
 
         game_obj = Game(
-            title=game["Title"],
-            is_handheld=game["Features"]["Handheld?"],
-            max_players=game["Features"]["Max Players"],
-            is_multiplatform=game["Features"]["Multiplatform?"],
-            is_online=game["Features"]["Online?"],
-            is_licensed=game["Metadata"]["Licensed?"],
-            is_sequel=game["Metadata"]["Sequel?"],
+            title=game.title,
+            is_handheld=game.features.is_handheld,
+            max_players=game.features.max_players,
+            is_multiplatform=game.features.is_multiplatform,
+            is_online=game.features.is_online,
+            is_licensed=game.metadata.is_licensed,
+            is_sequel=game.metadata.is_sequel,
             review_score=review_score,
-            sales_millions_usd=game["Metrics"]["Sales"],
-            used_price_usd=game["Metrics"]["Used Price"],
-            console=game["Release"]["Console"],
-            esrb_rating=esrb,
-            is_re_release=game["Release"]["Re-release?"],
-            release_year=game["Release"]["Year"],
+            sales_millions_usd=game.metrics.sales_millions_usd,
+            used_price_usd=game.metrics.used_price_usd,
+            console=game.release.console,
+            esrb_rating=game.release.esrb_rating,
+            is_re_release=game.release.is_re_release,
+            release_year=game.release.release_year,
         )
 
         # nest lengths directly on game object, set game_id FK automatically on flush
-        for length_type, values in game["Length"].items():
-            length_obj = GameLength(
-                playstyle=length_type,
-                avg_hours=round(values["Average"], 2),
-                leisure_hours=round(values["Leisure"], 2),
-                median_hours=round(values["Median"], 2),
-                rushed_hours=round(values["Rushed"], 2),
-                num_players_polled=values["Polled"],
-            )
-            game_obj.lengths.append(length_obj)
+        for length_type, playstyle in game.length.model_dump(by_alias=True).items():
+            if playstyle:  # skip None playstyles
+                length_obj = GameLength(
+                    playstyle=length_type,
+                    avg_hours=round(playstyle["Average"], 2),
+                    leisure_hours=round(playstyle["Leisure"], 2),
+                    median_hours=round(playstyle["Median"], 2),
+                    rushed_hours=round(playstyle["Rushed"], 2),
+                    num_players_polled=playstyle["Polled"],
+                )
+                game_obj.lengths.append(length_obj)
 
         # normalize genre separators '/' and filter out empty strings
-        genres_raw = game["Metadata"]["Genres"].replace("/", ",").split(",")
+        genres_raw = game.metadata.genres.replace("/", ",").split(",")
         genres_raw = [g.strip() for g in genres_raw if g.strip()]
 
         for genre_name in genres_raw:
@@ -82,7 +97,7 @@ def clean_data(data):
             game_obj.genres.append(GameGenre(genre=genre_cache[genre_name]))
 
         # normalize publisher separators and filter empty strings
-        publishers_raw = game["Metadata"]["Publishers"].replace("/", ",").split(",")
+        publishers_raw = game.metadata.publishers.replace("/", ",").split(",")
         publishers_raw = [p.strip() for p in publishers_raw if p.strip()]
         for publisher_name in publishers_raw:
             # get or create, reuse existing Publisher object if already seen across games (table will hold unique publishers)
@@ -104,26 +119,20 @@ def insert_games(games, genre_cache, publisher_cache, db):
     Genres and publishers are inserted first to generate IDs before junction rows are created.
     All operations run in a single transaction, commits on success, rolls back on failure.
     """
-    try:
-        with db.get_session() as session:
-            for genre in genre_cache.values():
-                session.add(genre)
+    with db.transaction() as session:
+        for genre in genre_cache.values():
+            session.add(genre)
 
-            for publisher in publisher_cache.values():
-                session.add(publisher)
+        for publisher in publisher_cache.values():
+            session.add(publisher)
 
+        session.flush()
+        for game in games:
+            session.add(game)
             session.flush()
-            for game in games:
-                session.add(game)
-                session.flush()
 
-            session.commit()
-            print(f"Successfully inserted {len(games)} games!")
-
-    except OperationalError:
-        print("Could not connect to db. Is Docker running?")
-    except Exception as e:
-        print(f"An unexpected error occurred during insert: {e}")
+        session.commit()
+        print(f"Successfully inserted {len(games)} games!")
 
 
 def ingest_data(filename, db):
