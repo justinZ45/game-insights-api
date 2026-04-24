@@ -29,7 +29,6 @@ def clean_data(data):
     Returns a list of Game objects with nested lengths, genres, and publishers.
     """
 
-    ESRB_RATINGS = ("E", "M", "T", "A")
     games = []
     genre_cache = {}  # avoid duplicate genre lookups: {name: Genre object}
     publisher_cache = {}  # avoid duplicate publisher lookups: {name: Publisher object}
@@ -47,14 +46,6 @@ def clean_data(data):
             print(f"Skipping invalid game, title: {title}: {e}")
             continue
 
-        # clean core game fields
-        review_score = game.metrics.review_score
-        review_score = max(0, min(100, review_score))  # clip between 0 and 100
-
-        # ensure rating adheres to ESRB standards, default to RP (rating pending) if unknown
-        esrb = str(game.release.esrb_rating).upper().strip()
-        esrb = esrb if esrb in ESRB_RATINGS else "RP"
-
         game_obj = Game(
             title=game.title,
             is_handheld=game.features.is_handheld,
@@ -63,7 +54,7 @@ def clean_data(data):
             is_online=game.features.is_online,
             is_licensed=game.metadata.is_licensed,
             is_sequel=game.metadata.is_sequel,
-            review_score=review_score,
+            review_score=game.metrics.review_score,
             sales_millions_usd=game.metrics.sales_millions_usd,
             used_price_usd=game.metrics.used_price_usd,
             console=game.release.console,
