@@ -1,4 +1,4 @@
-from db.orm_models import (
+from src.models.orm_models import (
     Base,
     Game,
     GameLength,

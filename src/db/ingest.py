@@ -1,7 +1,6 @@
 import json
-from db import Game, GameLength, Genre, Publisher, GameGenre, GamePublisher
-from sqlalchemy.exc import OperationalError
-from src import GameJsonInput
+from src.models.orm_models import Game, Genre, Publisher, GameGenre, GameLength, GamePublisher
+from src.models.pydantic_models import GameInput
 from pydantic import ValidationError
 
 
@@ -35,7 +34,7 @@ def clean_data(data):
 
     for game in data:
         try:
-            game = GameJsonInput.model_validate(
+            game = GameInput.model_validate(
                 game, by_alias=True
             )  # validate game dict using pydantic model
 

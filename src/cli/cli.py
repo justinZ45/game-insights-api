@@ -1,10 +1,10 @@
 from importlib.metadata import version
-from db import Database
-from src.ingest import ingest_data
+from src.db.db import Database
+from src.db.ingest import ingest_data
 import pprint
 import argparse
 
-
+  
 # single shared db instance
 db = Database()
 
@@ -105,61 +105,49 @@ def main():
         "-v", "--version", action="version", version=f"%(prog)s {__version__}"
     )
 
-    # top level subcommands: db, ingest
     gia_subparsers = parser.add_subparsers(title="subcommands", dest="gia_subcommands")
 
-    # --- ingest subcommand ---
     ingest_parser = gia_subparsers.add_parser("ingest", help="loading data to db")
 
-    # file to ingest from
     ingest_parser.add_argument(
         "-f", "--file", help="path to file to ingest to db", action="store"
     )
 
-    # --- db subcommand ---
     db_parser = gia_subparsers.add_parser("db", help="database utilities")
     db_subparsers = db_parser.add_subparsers(title="subcommands", dest="db_subcommands")
 
-    # --- db query ---
     query_parser = db_subparsers.add_parser(
         "query",
         help="query information from specified db table",
         usage="gia query table_name [-c] [-l n]",
     )
 
-    # target (which table to query)
     query_parser.add_argument(
         "name",
         metavar="table_name",
         help="name of table to query",
     )
 
-    # get count of specified table
     query_parser.add_argument(
         "-c", "--count", help="count of table rows", action="store_true"
     )
 
-    # limit query
     query_parser.add_argument(
         "-l", "--limit", type=int, metavar="n", help="limit results"
     )
 
-    # --- db status ---
     status_parser = db_subparsers.add_parser(
         "status", help="get connection status to db"
     )
 
-    # detailed output
     status_parser.add_argument(
         "-v", "--verbose", help="verbose status output", action="store_true"
     )
 
-    # --- db reset subcommand ---
     reset_parser = db_subparsers.add_parser(
         "reset", help="reset (drop & recreate) schema or truncate table"
     )
 
-    # target (what to reset in db)
     reset_parser.add_argument(
         "target", help="target of db reset", choices=["schema", "table"]
     )

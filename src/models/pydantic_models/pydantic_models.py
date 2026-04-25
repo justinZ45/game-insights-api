@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional
 from datetime import datetime
+from decimal import Decimal
 
 
 class Features(BaseModel):
@@ -36,6 +37,16 @@ class Metrics(BaseModel):
     sales_millions_usd: Optional[float] = Field(alias="Sales", default=None, ge=0)
     used_price_usd: Optional[float] = Field(alias="Used Price", default=None, ge=0)
 
+    @field_validator("used_price_usd")
+    @classmethod
+    def check_decimal_places(cls, price):
+        """Validates that entered used price field rating is 2 decimal places, as money amounts can not be more"""
+        if price is not None:
+            d = Decimal(str(price))
+            if d.as_tuple().exponent < -2:
+                raise ValueError("Used price must have at most 2 decimal places")
+        return price
+
 
 class Release(BaseModel):
     """Validates the Release section of a game JSON entry."""
@@ -51,13 +62,13 @@ class Release(BaseModel):
 
     @field_validator("esrb_rating")
     @classmethod
-    def validate_esrb_rating(cls, v):
+    def validate_esrb_rating(cls, rating):
         """Validates that entered ESRB rating matches all possible values. Default to 'RP' otherwise"""
 
         ESRB_RATINGS = ("E", "M", "T", "A", "RP", "E10+")
-        if v is not None:
-            v = str(v).upper().strip()
-            return v if v in ESRB_RATINGS else "RP"
+        if rating is not None:
+            rating = str(rating).upper().strip()
+            return rating if rating in ESRB_RATINGS else "RP"
         return "RP"  # default to RP if None
 
 
@@ -84,7 +95,7 @@ class Length(BaseModel):
     main_story: Optional[PlayStyle] = Field(alias="Main Story", default=None)
 
 
-class GameJsonInput(BaseModel):
+class Game(BaseModel):
     """Top level validation model for a single game entry in the input JSON file."""
 
     model_config = ConfigDict(populate_by_name=True)
