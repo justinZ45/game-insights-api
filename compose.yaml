@@ -15,4 +15,7 @@ services:
       - "5432:5432"
 
     volumes:
-      - /Users/justinzaluk/Desktop/Volumes/postgres:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
