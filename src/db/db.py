@@ -17,8 +17,6 @@ import time
 
 load_dotenv()
 
-DB_URL = os.environ["DB_URL"]  # env variable, URL to database
-
 # map from postgres table name to ORM model
 TABLE_MAP = {
     "games": Game,
@@ -29,7 +27,33 @@ TABLE_MAP = {
     "game_publishers": GamePublisher,
 }
 
-engine = create_engine(DB_URL, echo=False, pool_pre_ping=True)
+
+def get_engine():
+    """
+    Constructs the database engine dynamically based on the environment.
+    Priority:
+    1. DB_URL (provided by Docker Compose)
+    2. Individual components from .env (with 'localhost' fallback for the host)
+    """
+    if "DB_URL" in os.environ:
+        # If running in Docker, Compose has already built the URL
+        url = os.environ["DB_URL"]
+    else:
+        # If running locally, build the URL but override the host to 'localhost'
+        user = os.getenv("DB_USER", "postgres")
+        password = os.getenv("DB_PASSWORD", "postgres")
+        name = os.getenv("DB_NAME", "game-insights-db")
+        port = os.getenv("DB_PORT", "5432")
+
+        # Ignore DB_HOST from .env here because outside Docker, 'db' is unreachable
+        host = os.getenv("DB_HOST", "localhost")
+        url = f"postgresql://{user}:{password}@{host}:{port}/{name}"
+
+    return create_engine(url, echo=False, pool_pre_ping=True)
+
+
+# Initialize the engine once
+engine = get_engine()
 
 
 def retry_conn(num_retries: int):
