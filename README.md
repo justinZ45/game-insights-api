@@ -119,7 +119,7 @@ The ingestion pipeline expects a JSON file containing an array of game objects. 
 
 **Validation rules applied at ingestion:**
 - `Review Score` must be between 0 and 100
-- all game length attributes (`average, leisure, median, polled, rushed`) must be greater than or equal to 0
+- All game length attributes (`average, leisure, median, polled, rushed`) must be greater than or equal to 0
 - `Max Players` must be greater than or equal to 1
 - `Rating` must be a valid ESRB rating (`E`, `M`, `T`, `A`, `RP`, `E10+`) - defaults to `RP` if unknown
 - `Sales` and `Used Price` must be non-negative and to 2 decimal places
