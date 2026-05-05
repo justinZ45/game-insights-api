@@ -21,7 +21,6 @@ A Python-based REST API for querying video game data, built as a project to expl
 game-insights-api/
 ├── src/
 │   ├── __init__.py
-│   ├── ingest.py                        # JSON ingestion pipeline
 │   ├── api/
 │   │   ├── main.py                      # FastAPI app entry point + lifespan
 │   │   ├── dependencies.py              # shared DB session dependency injection
@@ -33,6 +32,7 @@ game-insights-api/
 │   │   └── cli.py                       # CLI entry point (gia command)
 │   ├── db/
 │   │   └── db.py                        # database engine, session, and utility methods
+│   │   └── ingest.py                    # JSON ingestion pipeline
 │   └── models/
 │       ├── orm_models/                  # SQLAlchemy ORM table definitions
 │       │   ├── base.py
