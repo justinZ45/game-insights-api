@@ -5,13 +5,13 @@ A Python-based REST API for querying video game data, built as a project to expl
 ## Tech Stack
 
 - **Python 3.12**
-- **FastAPI** — REST API framework with auto-generated interactive docs
-- **SQLAlchemy** — ORM and database session management
-- **Pydantic** — data validation for both ingestion pipeline and API schemas
-- **PostgreSQL 16** — relational database
-- **Docker + Docker Compose** — fully containerized db & api
-- **pytest** — unit and integration testing
-- **argparse** — custom CLI (`gia`) for database and ingestion management
+- **FastAPI** - REST API framework with auto-generated interactive docs
+- **SQLAlchemy** - ORM and database session management
+- **Pydantic** - data validation for both ingestion pipeline and API schemas
+- **PostgreSQL 16** - relational database
+- **Docker + Docker Compose** - fully containerized db & api
+- **pytest** - unit and integration testing
+- **argparse** - custom CLI (`gia`) for database and ingestion management
 
 ---
 
@@ -70,7 +70,7 @@ game-insights-api/
 ├── Dockerfile                           # containerizes the FastAPI app
 ├── compose.yaml                         # orchestrates app + postgres
 ├── pyproject.toml
-├── .env.example                         # template — committed, no real values
+├── .env.example                         # template - committed, no real values
 ```
 
 ## Input Data Format
@@ -121,11 +121,11 @@ The ingestion pipeline expects a JSON file containing an array of game objects. 
 - `Review Score` must be between 0 and 100
 - all game length attributes (`average, leisure, median, polled, rushed`) must be greater than or equal to 0
 - `Max Players` must be greater than or equal to 1
-- `Rating` must be a valid ESRB rating (`E`, `M`, `T`, `A`, `RP`, `E10+`) — defaults to `RP` if unknown
+- `Rating` must be a valid ESRB rating (`E`, `M`, `T`, `A`, `RP`, `E10+`) - defaults to `RP` if unknown
 - `Sales` and `Used Price` must be non-negative and to 2 decimal places
 - `Year` must be between 1950 and the current year
 - `Genres` and `Publishers` support multiple values separated by `,` or `/`
-- Games that fail validation are skipped with a warning — the rest of the file continues ingesting
+- Games that fail validation are skipped with a warning - the rest of the file continues ingesting
 
 ### The bundled dataset is sourced from the [CORGIS Dataset Project](https://corgis-edu.github.io/corgis/json/video_games/).
 ---
@@ -183,7 +183,7 @@ publishers               unique publisher lookup table
 
 ---
 
-## Quickstart — Docker (Recommended)
+## Quickstart - Docker (Recommended)
 
 ### Prerequisites
 - Docker Desktop
@@ -257,7 +257,7 @@ The `gia` CLI manages the database and data ingestion directly from your termina
 ```bash
 # Database connection
 gia db status                    # check if DB is reachable
-gia db status -v                 # verbose — version, size, tables, connections
+gia db status -v                 # verbose - version, size, tables, connections
 
 # Schema management
 gia db reset schema              # drop and recreate all tables
@@ -306,7 +306,7 @@ Returns a paginated, filterable list of games.
 GET /games/?genre=Action&min_review_score=80&console=Nintendo DS&limit=5
 ```
 
-**Response:** lightweight `GameSummary` objects — no playtime data, includes genre and publisher names.
+**Response:** lightweight `GameSummary` objects - no playtime data, includes genre and publisher names.
 
 #### `GET /games/{game_id}`
 Returns a single game with full details including playtime statistics for all playstyles.
@@ -334,13 +334,13 @@ Returns a single game with full details including playtime statistics for all pl
 ## Running Tests
 
 ```bash
-# Unit tests — no database required
+# Unit tests - no database required
 pytest tests/test_ingest.py -v
 
-# Integration tests — requires running Docker container
+# Integration tests - requires running Docker container
 pytest tests/test_db_integration.py -v
 
-# API tests — requires running Docker container and ingested data
+# API tests - requires running Docker container and ingested data
 pytest tests/api/ -v
 
 # All tests
@@ -356,7 +356,7 @@ pytest -m "not integration" -v
 
 ## Data Source
 
-Video game data sourced from the [CORGIS Dataset Project](https://corgis-edu.github.io/corgis/json/video_games/) — a collection of cleaned, real-world datasets designed for educational use. The dataset includes 1,200+ games with metadata on platforms, genres, publishers, review scores, sales figures, and playtime statistics across four playstyle categories.
+Video game data sourced from the [CORGIS Dataset Project](https://corgis-edu.github.io/corgis/json/video_games/) - a collection of cleaned, real-world datasets designed for educational use. The dataset includes 1,200+ games with metadata on platforms, genres, publishers, review scores, sales figures, and playtime statistics across four playstyle categories.
 
 ---
 
