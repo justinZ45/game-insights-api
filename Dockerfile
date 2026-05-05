@@ -5,11 +5,6 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /usr/local/app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY data ./data
 
 COPY pyproject.toml .
