@@ -1,12 +1,47 @@
 import json
-from src.models.orm_models import Game, Genre, Publisher, GameGenre, GameLength, GamePublisher
+from src.models.orm_models import (
+    Game,
+    Genre,
+    Publisher,
+    GameGenre,
+    GameLength,
+    GamePublisher,
+)
 from src.models.pydantic_models import GameInput
 from pydantic import ValidationError
+from sqlalchemy import select
+import httpx
+
+
+CORGIS_URL = (
+    "https://corgis-edu.github.io/corgis/datasets/json/video_games/video_games.json"
+)
+
+
+def seed_from_corgis(db):
+    """Fetches and ingests game data from the CORGIS dataset."""
+    try:
+        print(f"Fetching data from CORGIS: {CORGIS_URL}", flush=True)
+        response = httpx.get(CORGIS_URL, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        print(f"Fetched {len(data)} games - ingesting...", flush=True)
+        _process_and_insert(data, db)
+
+    except httpx.TimeoutException:
+        print("CORGIS fetch timed out after 30 seconds. Check network connection!")
+    except httpx.HTTPStatusError as e:
+        print(
+            f"CORGIS returned an error response: {e.response.status_code} {e.response.reason_phrase}"
+        )
+    except httpx.RequestError as e:
+        print(f"Network error fetching from CORGIS: {type(e).__name__}: {e}")
+    except Exception as e:
+        print(f"Unexpected error during CORGIS seed: {type(e).__name__}: {e}")
 
 
 def open_file(filename: str):
     """Opens a JSON file and loads its data."""
-
     try:
         with open(filename) as f:
             data = json.load(f)
@@ -22,15 +57,13 @@ def open_file(filename: str):
         print(f"An unexpected error occurred: {e}")
 
 
-def clean_data(data):
+def clean_data(data, genre_cache, publisher_cache):
     """
     Parses and cleans raw JSON game data into ORM model objects.
     Returns a list of Game objects with nested lengths, genres, and publishers.
     """
 
     games = []
-    genre_cache = {}  # avoid duplicate genre lookups: {name: Genre object}
-    publisher_cache = {}  # avoid duplicate publisher lookups: {name: Publisher object}
 
     for game in data:
         try:
@@ -75,57 +108,101 @@ def clean_data(data):
                 )
                 game_obj.lengths.append(length_obj)
 
-        # normalize genre separators '/' and filter out empty strings
+        # Normalize genres and manage links
         genres_raw = game.metadata.genres.replace("/", ",").split(",")
         genres_raw = [g.strip() for g in genres_raw if g.strip()]
 
         for genre_name in genres_raw:
-            # get or create, reuse existing Genre object if already seen across games (table will hold unique genres)
-            genre_name = genre_name.strip()
             if genre_name not in genre_cache:
+                # This is a genuinely new genre not present in JSON or DB yet
                 genre_cache[genre_name] = Genre(name=genre_name)
+
+            # Link via junction table object
             game_obj.genres.append(GameGenre(genre=genre_cache[genre_name]))
 
-        # normalize publisher separators and filter empty strings
+        # Normalize publishers and manage links
         publishers_raw = game.metadata.publishers.replace("/", ",").split(",")
         publishers_raw = [p.strip() for p in publishers_raw if p.strip()]
+
         for publisher_name in publishers_raw:
-            # get or create, reuse existing Publisher object if already seen across games (table will hold unique publishers)
-            publisher_name = publisher_name.strip()
             if publisher_name not in publisher_cache:
+                # This is a genuinely new publisher not present in JSON or DB yet
                 publisher_cache[publisher_name] = Publisher(name=publisher_name)
+
+            # Link via junction table object
             game_obj.publishers.append(
                 GamePublisher(publisher=publisher_cache[publisher_name])
             )
 
         games.append(game_obj)
 
-    return games, genre_cache, publisher_cache
+    return games
 
 
 def insert_games(games, genre_cache, publisher_cache, db):
     """
-    Inserts all games and related objects into the database.
-    Genres and publishers are inserted first to generate IDs before junction rows are created.
-    All operations run in a single transaction, commits on success, rolls back on failure.
+    Inserts all games and new lookup parameters into the database.
+    Only updates lookup tables with records missing database PK identifiers.
     """
     with db.transaction() as session:
+        # Only add records that DO NOT have a primary key yet (meaning they are brand new)
         for genre in genre_cache.values():
-            session.add(genre)
+            if genre.genre_id is None:
+                session.add(genre)
 
         for publisher in publisher_cache.values():
-            session.add(publisher)
+            if publisher.publisher_id is None:
+                session.add(publisher)
 
+        # Flush ensures new lookups get IDs from Postgres before games link to them
         session.flush()
+
         for game in games:
             session.add(game)
-            session.flush()
-
-        session.commit()
-        print(f"Successfully inserted {len(games)} games!")
 
 
-def ingest_data(filename, db):
-    """Entry point for the ingest pipeline. Loads, cleans, and inserts game data from CORGIS JSON file."""
-    games, genre_cache, publisher_cache = clean_data(open_file(filename))
-    insert_games(games, genre_cache, publisher_cache, db)
+def ingest_file_data(filepath, db):
+    """Ingests game data from a local JSON file."""
+    try:
+        data = open_file(filepath)
+        if data is None:
+            print(f"Ingestion aborted - could not load file: {filepath}")
+            return
+        _process_and_insert(data, db)
+    except Exception as e:
+        print(f"Ingestion failed: {type(e).__name__}: {e}")
+        raise
+
+
+def _process_and_insert(data, db):
+    """Shared pipeline - cleans and inserts game data regardless of source."""
+    if not data:
+        print("No data to process - aborting.")
+        return
+
+    try:
+        print(f"Processing {len(data)} games...", flush=True)
+
+        # Hydrate caches directly from the live database records
+        genre_cache = {}
+        publisher_cache = {}
+
+        with db.get_session() as session:
+            existing_genres = session.scalars(select(Genre)).all()
+            for g in existing_genres:
+                genre_cache[g.name] = g
+
+            existing_publishers = session.scalars(select(Publisher)).all()
+            for p in existing_publishers:
+                publisher_cache[p.name] = p
+
+        # Clean using the pre-loaded dictionary caches
+        games = clean_data(data, genre_cache, publisher_cache)
+
+        # Run database insertions
+        insert_games(games, genre_cache, publisher_cache, db)
+        print(f"Successfully inserted {len(games)} games.", flush=True)
+
+    except Exception as e:
+        print(f"Failed during clean/insert pipeline: {type(e).__name__}: {e}")
+        raise

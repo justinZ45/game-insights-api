@@ -57,15 +57,7 @@ engine = get_engine()
 
 
 def retry_conn(num_retries: int):
-    """
-    Decorator that retries a function on database connection failure.
-
-    Args:
-        num_retries: Number of times to retry before giving up.
-
-    Raises:
-        Exception: If max retries are reached without a successful connection.
-    """
+    """Decorator that retries a function on database connection failure."""
 
     def decorator_retry_func(func):
         def wrapper_retry_func(*args, **kwargs):
@@ -76,7 +68,7 @@ def retry_conn(num_retries: int):
                     break
                 except OperationalError:
                     if retry == num_retries - 1:
-                        raise Exception("Max retries reached!")
+                        raise Exception("Max db connection retries reached!")
                     print(
                         f"Failed attempt #{retry + 1} to connect to DB. Retrying connection..."
                     )
@@ -115,76 +107,66 @@ class Database:
             with self.get_session() as session:
                 yield session
                 session.commit()
-        except OperationalError:
-            print("Could not connect to db. Is Docker running?")
+        except OperationalError as e:
+            print(f"Database connection error: {e.orig}")
+            raise
         except Exception as e:
-            print(f"Unexpected error: {e}")
+            print(f"Unexpected error: {type(e).__name__}: {e}")
+            raise
 
     def get_db_status(self, verbose: bool):
-        """
-        Checks if the database is reachable.
-
-        Returns:
-            bool: True if connected, False if not
-
-        Args:
-            verbose: bool, specified if detailed db output needed.
-
-        Raises:
-            Exception: If unsuccessful connection, raise OperationalError
-        """
-
+        """Checks if the database is reachable without raw SQL strings."""
         db_dict = {}
         try:
-            with engine.connect() as conn:
-                conn.execute(text("SELECT 1"))
+            with self.get_session() as session:
+                session.execute(select(1)).scalar()
 
                 if verbose:
-                    result = conn.execute(
-                        text("""
-                                SELECT 
-                                current_database(),
-                                version(),
-                                pg_size_pretty(pg_database_size(current_database())),
-                                (SELECT count(*) from pg_stat_activity WHERE datname = current_database());
-                                """)
+                    # Bind to PostgreSQL system catalog functions using SQLAlchemy's func object
+                    current_db = func.current_database()
+
+                    # Construct a fully compiled SQLAlchemy query
+                    status_query = select(
+                        current_db,
+                        func.version(),
+                        func.pg_size_pretty(func.pg_database_size(current_db)),
+                        select(func.count())
+                        .where(text("datname = current_database()"))
+                        .select_from(text("pg_stat_activity"))
+                        .scalar_subquery(),
                     )
 
-                    rows = result.fetchall()
+                    row = session.execute(status_query).fetchone()
 
-                    db_dict["db_name"] = rows[0][0]
-                    version_split = rows[0][1].split()
-                    db_dict["db_version"] = (
-                        version_split[0] + " " + version_split[1]
-                    )  # only extract database type and version
-                    db_dict["db_size"] = rows[0][
-                        2
-                    ]  # size of db (kB, MB, GB, or TB, etc)
-                    db_dict["db_num_connections"] = rows[0][3]
-                    db_dict["tables"] = self.get_inspector().get_table_names()
+                    if row:
+                        db_dict["db_name"] = row[0]
+                        # Safely parse out the core version string
+                        version_split = row[1].split()
+                        db_dict["db_version"] = f"{version_split[0]} {version_split[1]}"
+                        db_dict["db_size"] = row[2]
+                        db_dict["db_num_connections"] = row[3]
+                        db_dict["tables"] = self.get_inspector().get_table_names()
 
             return True, db_dict
-        except OperationalError:
+        except OperationalError as e:
+            print(f"Failed to get Database status, unreachable: {e.orig}")
             return False, db_dict
 
     def create_schema(self):
         """Creates all database tables defined in the ORM models."""
-
         try:
             Base.metadata.create_all(engine)
             print("Schema created!")
-
-        except OperationalError:
-            print("Could not connect to db. Is Docker running?")
+        except OperationalError as e:
+            print(f"Failed to create schema: {e.orig}")
 
     def delete_schema(self):
         """Deletes all database tables defined in the ORM models."""
-
         try:
             Base.metadata.drop_all(engine)
             print("Schema deleted!")
-        except OperationalError:
-            print("Could not connect to db. Is Docker running?")
+        except OperationalError as e:
+            print(f"Failed to delete schema: {e.orig}")
 
     def get_dependent_tables(self, table):
         """Returns a list of tables that have foreign keys referencing the given table."""

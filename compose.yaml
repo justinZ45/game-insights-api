@@ -27,7 +27,8 @@ services:
       - "8000:8000"
     environment:
       - DB_HOST=db
-      - DB_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:${DB_PORT}/${DB_NAME}    
+      - DB_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:${DB_PORT}/${DB_NAME}  
+      - AUTO_SEED=${AUTO_SEED}
     depends_on:
       db:
         condition: service_healthy

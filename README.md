@@ -12,6 +12,7 @@ A Python-based REST API for querying video game data, built as a project to expl
 - **Docker + Docker Compose** - fully containerized db & api
 - **pytest** - unit and integration testing
 - **argparse** - custom CLI (`gia`) for database and ingestion management
+- **httpx** - HTTP client utilized to asynchronously fetch CORGIS dataset during pipeline ingestion, as well as powering `pytest` API integration tests
 
 ---
 
@@ -65,8 +66,6 @@ game-insights-api/
 │       ├── test_games.py                # API tests for games endpoints
 │       ├── test_genres.py               # API tests for genres endpoints
 │       └── test_publishers.py           # API tests for publishers endpoints
-├── data/
-│   └── video_games.json                 # source dataset (CORGIS)
 ├── Dockerfile                           # containerizes the FastAPI app
 ├── compose.yaml                         # orchestrates app + postgres
 ├── pyproject.toml
@@ -128,6 +127,7 @@ The ingestion pipeline expects a JSON file containing an array of game objects. 
 - Games that fail validation are skipped with a warning - the rest of the file continues ingesting
 
 ### The bundled dataset is sourced from the [CORGIS Dataset Project](https://corgis-edu.github.io/corgis/json/video_games/).
+#### **Direct Data Endpoint:** [`video_games.json`](https://corgis-edu.github.io/corgis/datasets/json/video_games/video_games.json)
 ---
 
 ## Database Schema
@@ -208,6 +208,7 @@ DB_USER=postgres
 DB_PASSWORD=replace_this_with_a_secure_password
 DB_NAME=game-insights-db
 DB_PORT=5432
+AUTO_SEED=True
 ```
 
 ### 3. Start the full stack
@@ -218,13 +219,10 @@ docker compose up -d
 
 This starts both PostgreSQL and the FastAPI app containers.
 
-### 4. Seed the database / load data
+> **Important Note on First Boot:** If `AUTO_SEED=True` and the database contains zero records inside your core tables on boot, the application will automatically initialize the database schema and trigger the ingestion pipeline to seed the PostgreSQL instance with the CORGIS video game dataset. No manual database setup or CLI execution is required for the initial launch.
 
-```bash
-gia ingest -f data/video_games.json
-```
 
-### 5. Access the API
+### 4. Access the API
 
 - API: `http://localhost:8000`
 - Interactive docs: `http://localhost:8000/docs`
@@ -242,7 +240,7 @@ Install dependencies, set up `.env`, then:
 ```bash
 pip install -e ".[dev]"
 gia db reset schema
-gia ingest -f data/video_games.json
+gia ingest --corgis
 uvicorn src.api.main:app --reload
 ```
 
@@ -272,6 +270,7 @@ gia db query games -l 10            # show first 10 rows from games
 
 # Ingest data
 gia ingest -f data/video_games.json            # can type any filename after -f
+gia ingest --corgis                            # ingest corgis json data
 ```
 
 ---
@@ -350,7 +349,7 @@ pytest -v
 pytest -m "not integration" -v
 ```
 
-> Integration and API tests require the full stack running (`docker compose up -d`) with data ingested (`gia ingest -f data/video_games.json`).
+> Integration and API tests require the full stack running (`docker compose up -d`) with data ingested (`gia ingest --corgis`).
 
 ---
 

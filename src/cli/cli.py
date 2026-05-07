@@ -1,10 +1,10 @@
 from importlib.metadata import version
 from src.db.db import Database
-from src.db.ingest import ingest_data
+from src.db.ingest import ingest_file_data, seed_from_corgis
 import pprint
 import argparse
 
-  
+
 # single shared db instance
 db = Database()
 
@@ -25,7 +25,9 @@ def handle_db_status(args):
                 sep="\n",
             )
     else:
-        print("Could not connect to database. Is Docker running?")
+        print(
+            "Could not connect to database for status. Check your .env configuration and verify Docker is running."
+        )
 
 
 def reset_schema():
@@ -86,8 +88,13 @@ def handle_query(args):
 
 
 def handle_ingest(args):
-    """Handles the ingest subcommand. Source data file specified by input with flag."""
-    ingest_data(args.file, db)
+    """Handles the ingest subcommand. Source data file specified by input with flag, or seed from Corgis games JSON dataset."""
+    if args.file:
+        ingest_file_data(args.file, db)
+    elif args.corgis:
+        seed_from_corgis(db)
+    else:
+        print("Please provide -f or --corgis.")
 
 
 def main():
@@ -109,8 +116,16 @@ def main():
 
     ingest_parser = gia_subparsers.add_parser("ingest", help="loading data to db")
 
-    ingest_parser.add_argument(
-        "-f", "--file", help="path to file to ingest to db", action="store"
+    ingest_source = ingest_parser.add_mutually_exclusive_group(required=True)
+
+    ingest_source.add_argument(
+        "-f", "--file", metavar="path", help="path to local JSON file to ingest"
+    )
+
+    ingest_source.add_argument(
+        "--corgis",
+        action="store_true",
+        help="fetch and ingest latest data from the CORGIS dataset",
     )
 
     db_parser = gia_subparsers.add_parser("db", help="database utilities")

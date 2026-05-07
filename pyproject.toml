@@ -11,10 +11,11 @@ description = "Simple side project to store video game data and expose it throug
 dependencies = [
     "psycopg2-binary~=2.9.9",
     "sqlalchemy~=2.0.0",
-    "pydantic~=2.7.0",
+    "pydantic~=2.13.3",
     "python-dotenv~=1.0.1",
     "fastapi[standard]~=0.110.0",
-    "uvicorn~=0.30.0"
+    "uvicorn~=0.30.0",
+    "httpx~=0.28.1",
 ]
 
 [project.optional-dependencies]

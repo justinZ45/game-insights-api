@@ -5,8 +5,6 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /usr/local/app
 
-COPY data ./data
-
 COPY pyproject.toml .
 RUN touch README.md 
 
