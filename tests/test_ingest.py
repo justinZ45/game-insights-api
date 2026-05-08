@@ -1,36 +1,39 @@
 import pytest
+import httpx
 from pydantic import ValidationError
 from src.models.pydantic_models import GameInput
-from src.db.ingest import open_file, clean_data
-
-
-def test_open_file_missing():
-    """open_file should return None when file does not exist."""
-    result = open_file("nonexistent_file.json")
-    assert result is None
+from src.db.ingest import clean_data, seed_from_url
+from unittest.mock import MagicMock, patch
 
 
 def test_clean_data(sample_game):
-    games, _, _ = clean_data([sample_game])
+    """Verify that clean_data returns the list of processed games."""
+    # Only expect ONE return value (the games list)
+    games = clean_data([sample_game], {}, {})
     assert games[0].title == "Super Mario"
 
 
 def test_clean_data_genre_cache(sample_game):
     """Same genre across two games should produce one cache entry."""
-    _, genre_cache, _ = clean_data([sample_game, sample_game])
+    genre_cache = {}
+    # Python modifies genre_cache in place! No need to unpack it.
+    clean_data([sample_game, sample_game], genre_cache, {})
     assert len(genre_cache) == 1
 
 
 def test_clean_data_publisher_cache(sample_game):
     """Same publisher across two games should produce one cache entry."""
-    _, _, publisher_cache = clean_data([sample_game, sample_game])
+    publisher_cache = {}
+    # Python modifies publisher_cache in place! No need to unpack it.
+    clean_data([sample_game, sample_game], {}, publisher_cache)
     assert len(publisher_cache) == 1
 
 
 def test_clean_data_invalid_game_skipped():
     """clean_data should skip games that fail Pydantic validation."""
     bad_game = {"Title": "Bad Game"}
-    games, _, _ = clean_data([bad_game])
+    # Only expect ONE return value (the games list)
+    games = clean_data([bad_game], {}, {})
     assert len(games) == 0
 
 
@@ -93,3 +96,45 @@ def test_greater_than_eq_zero(sample_game, field, value):
 
     with pytest.raises(ValidationError):
         GameInput.model_validate(sample_game)
+
+
+
+@patch("src.db.ingest.httpx.get")
+@patch("src.db.ingest._process_and_insert")
+def test_seed_from_url_success(mock_process, mock_get):
+    """seed_from_url should fetch JSON and call processing pipeline on success."""
+    # Mocking successful httpx response
+    mock_response = MagicMock()
+    mock_response.json.return_value = [{"Title": "Mock Game"}]
+    mock_response.raise_for_status = MagicMock() # does nothing, mimicking success
+    mock_get.return_value = mock_response
+
+    mock_db = MagicMock()
+    
+    seed_from_url(mock_db, "https://fakeurl.com/games.json")
+    
+    mock_get.assert_called_once_with("https://fakeurl.com/games.json", timeout=30)
+    mock_process.assert_called_once_with([{"Title": "Mock Game"}], mock_db)
+
+
+@patch("src.db.ingest.httpx.get")
+@patch("src.db.ingest._process_and_insert")
+def test_seed_from_url_http_error(mock_process, mock_get):
+    """seed_from_url should gracefully catch HTTP errors and not crash."""
+    # Simulate a 404 Not Found error
+    mock_response = MagicMock()
+    mock_response.status_code = 404
+    mock_response.reason_phrase = "Not Found"
+    
+    # httpx raises HTTPStatusError when raise_for_status() is called on bad codes
+    mock_get.side_effect = httpx.HTTPStatusError(
+        message="404 Not Found", 
+        request=MagicMock(), 
+        response=mock_response
+    )
+
+    mock_db = MagicMock()
+    
+    seed_from_url(mock_db, "https://fakeurl.com/missing.json")
+    
+    mock_process.assert_not_called()

@@ -13,31 +13,28 @@ from sqlalchemy import select
 import httpx
 
 
-CORGIS_URL = (
-    "https://corgis-edu.github.io/corgis/datasets/json/video_games/video_games.json"
-)
 
 
-def seed_from_corgis(db):
-    """Fetches and ingests game data from the CORGIS dataset."""
+def seed_from_url(db, url):
+    """Fetches and ingests game data from specified url ."""
     try:
-        print(f"Fetching data from CORGIS: {CORGIS_URL}", flush=True)
-        response = httpx.get(CORGIS_URL, timeout=30)
+        print(f"Fetching data from url: {url}", flush=True)
+        response = httpx.get(url, timeout=30)
         response.raise_for_status()
         data = response.json()
-        print(f"Fetched {len(data)} games - ingesting...", flush=True)
+        print(f"Fetched {len(data)} records - ingesting...", flush=True)
         _process_and_insert(data, db)
 
     except httpx.TimeoutException:
-        print("CORGIS fetch timed out after 30 seconds. Check network connection!")
+        print("Url fetch timed out after 30 seconds. Check network connection!")
     except httpx.HTTPStatusError as e:
         print(
-            f"CORGIS returned an error response: {e.response.status_code} {e.response.reason_phrase}"
+            f"Url returned an error response: {e.response.status_code} {e.response.reason_phrase}"
         )
     except httpx.RequestError as e:
-        print(f"Network error fetching from CORGIS: {type(e).__name__}: {e}")
+        print(f"Network error fetching from url: {type(e).__name__}: {e}")
     except Exception as e:
-        print(f"Unexpected error during CORGIS seed: {type(e).__name__}: {e}")
+        print(f"Unexpected error during url seed: {type(e).__name__}: {e}")
 
 
 def open_file(filename: str):

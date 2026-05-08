@@ -3,7 +3,8 @@ from fastapi.responses import RedirectResponse
 from src.api.routers import games, genres, publishers
 from contextlib import asynccontextmanager
 from src.api.dependencies import db
-from src.db.ingest import seed_from_corgis
+from src.db.ingest import seed_from_url
+from src.cli.cli import CORGIS_URL  # Import your default URL constant
 import os
 
 
@@ -14,15 +15,17 @@ async def lifespan(app: FastAPI):
         db.create_schema()
         print("Schema ready!", flush=True)
 
-        # Read the environment flag for auto seeding
-        should_auto_seed = os.getenv("AUTO_SEED").lower() in ("true", "1", "yes")
+        # Safely read the environment flag for auto seeding
+        auto_seed_env = os.getenv("AUTO_SEED", "false")
+        should_auto_seed = auto_seed_env.lower() in ("true", "1", "yes")
 
         if should_auto_seed and db.get_table_count("games") == 0:
             print(
                 "Fresh database & auto-seed enabled - seeding from CORGIS...",
                 flush=True,
             )
-            seed_from_corgis(db)
+
+            seed_from_url(db, CORGIS_URL)
             print("Auto-seed complete!", flush=True)
         else:
             print("Auto-seed skipped (Disabled or data already exists).", flush=True)

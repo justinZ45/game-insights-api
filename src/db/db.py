@@ -28,32 +28,6 @@ TABLE_MAP = {
 }
 
 
-def get_engine():
-    """
-    Constructs the database engine dynamically based on the environment.
-    Priority:
-    1. DB_URL (provided by Docker Compose)
-    2. Individual components from .env (with 'localhost' fallback for the host)
-    """
-    if "DB_URL" in os.environ:
-        # If running in Docker, Compose has already built the URL
-        url = os.environ["DB_URL"]
-    else:
-        # If running locally, build the URL but override the host to 'localhost'
-        user = os.getenv("DB_USER", "postgres")
-        password = os.getenv("DB_PASSWORD", "postgres")
-        name = os.getenv("DB_NAME", "game-insights-db")
-        port = os.getenv("DB_PORT", "5432")
-
-        # Ignore DB_HOST from .env here because outside Docker, 'db' is unreachable
-        host = os.getenv("DB_HOST", "localhost")
-        url = f"postgresql://{user}:{password}@{host}:{port}/{name}"
-
-    return create_engine(url, echo=False, pool_pre_ping=True)
-
-
-# Initialize the engine once
-engine = get_engine()
 
 
 def retry_conn(num_retries: int):
@@ -87,14 +61,40 @@ class Database:
     Provides methods for schema management and query execution.
     """
 
-    def __init__(self):
-        self.name = engine.url.database
-        self.Session = sessionmaker(engine)
+    def __init__(self, host=None, port=None, user=None, db_name=None):
+        # Pass the new overrides into the builder
+        self.engine = self._build_engine(host, port, user, db_name)
+        self.host = self.engine.url.host
+        self.port = self.engine.url.port
+        self.user = self.engine.url.username
+        self.name = self.engine.url.database
+        self.Session = sessionmaker(self.engine)
+
+    def _build_engine(self, host_ovrd, port_ovrd, user_ovrd, name_ovrd):
+        """
+        Priority: 1. CLI Flags -> 2. Docker DB_URL -> 3. Environment/Defaults
+        """
+        db_url = os.environ.get("DB_URL")
+        
+        # If we have ANY CLI overrides or no DB_URL, reconstruct the URL
+        if not db_url or any([host_ovrd, port_ovrd, user_ovrd, name_ovrd]):
+            # Collect components from Env or hardcoded defaults
+            user = user_ovrd or os.getenv("DB_USER", "postgres")
+            pw = os.getenv("DB_PASSWORD", "postgres")
+            name = name_ovrd or os.getenv("DB_NAME", "game-insights-db")
+            h = host_ovrd or os.getenv("DB_HOST", "localhost")
+            p = port_ovrd or os.getenv("DB_PORT", "5432")
+            
+            db_url = f"postgresql://{user}:{pw}@{h}:{p}/{name}"
+
+            print(db_url)
+
+        return create_engine(db_url, echo=False, pool_pre_ping=True)
 
     def get_inspector(self):
         """Returns a SQLAlchemy inspector instance for the current engine."""
 
-        return inspect(engine)
+        return inspect(self.engine)
 
     def get_session(self):
         """Returns a new SQLAlchemy session instance."""
@@ -155,7 +155,7 @@ class Database:
     def create_schema(self):
         """Creates all database tables defined in the ORM models."""
         try:
-            Base.metadata.create_all(engine)
+            Base.metadata.create_all(self.engine)
             print("Schema created!")
         except OperationalError as e:
             print(f"Failed to create schema: {e.orig}")
@@ -163,7 +163,7 @@ class Database:
     def delete_schema(self):
         """Deletes all database tables defined in the ORM models."""
         try:
-            Base.metadata.drop_all(engine)
+            Base.metadata.drop_all(self.engine)
             print("Schema deleted!")
         except OperationalError as e:
             print(f"Failed to delete schema: {e.orig}")

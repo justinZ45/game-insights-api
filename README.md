@@ -12,7 +12,7 @@ A Python-based REST API for querying video game data, built as a project to expl
 - **Docker + Docker Compose** - fully containerized db & api
 - **pytest** - unit and integration testing
 - **argparse** - custom CLI (`gia`) for database and ingestion management
-- **httpx** - HTTP client utilized to asynchronously fetch CORGIS dataset during pipeline ingestion, as well as powering `pytest` API integration tests
+- **httpx** - HTTP client utilized to fetch the CORGIS dataset during pipeline ingestion, as well as powering pytest API integration tests
 
 ---
 
@@ -153,7 +153,7 @@ publishers               unique publisher lookup table
 | `release_year` | int | year of release |
 | `esrb_rating` | varchar(5) | E, M, T, A, RP, E10+ |
 | `review_score` | int | 0–100 |
-| `sales_millions_usd` | numeri(10,2) | sales in millions |
+| `sales_millions_usd` | numeric(10,2) | sales in millions |
 | `used_price_usd` | numeric(7,2) | used market price |
 | `is_handheld` | bool | |
 | `max_players` | int | |
@@ -240,7 +240,7 @@ Install dependencies, set up `.env`, then:
 ```bash
 pip install -e ".[dev]"
 gia db reset schema
-gia ingest --corgis
+gia ingest
 uvicorn src.api.main:app --reload
 ```
 
@@ -253,6 +253,17 @@ The `gia` CLI manages the database and data ingestion directly from your termina
 >(use the `-h` flag after any command/subcommand for help on usage)
 
 ```bash
+
+### Global Database Overrides
+By default, `gia` reads database credentials from your `.env` file or environment variables. However, you can override these dynamically for **any** command using global flags:
+
+# Force the CLI to connect to a database on a custom port or host
+gia --port 5433 db status
+gia --host staging-db-server --user admin db query games -c
+
+# Use a complete connection string override
+gia --db-url postgresql://test:test@localhost:5434/test_db db reset schema
+
 # Database connection
 gia db status                    # check if DB is reachable
 gia db status -v                 # verbose - version, size, tables, connections
@@ -269,8 +280,9 @@ gia db query games -c               # row count for games table
 gia db query games -l 10            # show first 10 rows from games
 
 # Ingest data
-gia ingest -f data/video_games.json            # can type any filename after -f
-gia ingest --corgis                            # ingest corgis json data
+gia ingest                                          # No flags: Defaults to fetching and seeding from the CORGIS dataset
+gia ingest -f data/video_games.json                 # Ingest from a local JSON file path
+gia ingest -u https://custom-api.com/data.json      # Ingest from a custom JSON URL
 ```
 
 ---
@@ -349,7 +361,7 @@ pytest -v
 pytest -m "not integration" -v
 ```
 
-> Integration and API tests require the full stack running (`docker compose up -d`) with data ingested (`gia ingest --corgis`).
+> Integration and API tests require the full stack running (`docker compose up -d`) with data ingested (`gia ingest`).
 
 ---
 

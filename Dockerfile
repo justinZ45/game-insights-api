@@ -6,7 +6,6 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /usr/local/app
 
 COPY pyproject.toml .
-RUN touch README.md 
 
 RUN pip install --no-cache-dir .
 
