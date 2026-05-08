@@ -4,15 +4,15 @@ A Python-based REST API for querying video game data, built as a project to expl
 
 ## Tech Stack
 
-- **Python 3.12**
+- **Python 3.12** - managed and packaged via **Poetry**
 - **FastAPI** - REST API framework with auto-generated interactive docs
 - **SQLAlchemy** - ORM and database session management
 - **Pydantic** - data validation for both ingestion pipeline and API schemas
 - **PostgreSQL 16** - relational database
 - **Docker + Docker Compose** - fully containerized db & api
-- **pytest** - unit and integration testing
-- **argparse** - custom CLI (`gia`) for database and ingestion management
-- **httpx** - HTTP client utilized to fetch the CORGIS dataset during pipeline ingestion, as well as powering pytest API integration tests
+- **Pytest** - unit and integration testing
+- **Argparse** - custom CLI (`gia`) for database and ingestion management
+- **Httpx** - HTTP client utilized to fetch the CORGIS dataset during pipeline ingestion, as well as powering pytest API integration tests
 
 ---
 
@@ -235,13 +235,15 @@ Start only the database:
 ```bash
 docker compose up -d db
 ```
-
 Install dependencies, set up `.env`, then:
 ```bash
-pip install -e ".[dev]"
-gia db reset schema
-gia ingest
-uvicorn src.api.main:app --reload
+# 1. Install all dependencies and register the 'gia' CLI locally
+poetry install
+
+# 2. Run your development steps using poetry run
+poetry run gia db reset schema
+poetry run gia ingest
+poetry run uvicorn src.api.main:app --reload
 ```
 
 ---
@@ -343,19 +345,19 @@ Returns a single game with full details including playtime statistics for all pl
 
 ```bash
 # Unit tests - no database required
-pytest tests/test_ingest.py -v
+poetry run pytest tests/test_ingest.py -v
 
 # Integration tests - requires running Docker container
-pytest tests/test_db_integration.py -v
+poetry run pytest tests/test_db_integration.py -v
 
 # API tests - requires running Docker container and ingested data
-pytest tests/api/ -v
+poetry run pytest tests/api/ -v
 
 # All tests
-pytest -v
+poetry run pytest -v
 
 # Skip integration tests
-pytest -m "not integration" -v
+poetry run pytest -m "not integration" -v
 ```
 
 > Integration and API tests require the full stack running (`docker compose up -d`) with data ingested (`gia ingest`).
