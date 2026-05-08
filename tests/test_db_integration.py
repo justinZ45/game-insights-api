@@ -2,15 +2,6 @@ import pytest
 from src.db.db import Database
 
 
-@pytest.mark.integration
-def test_db_conn():
-    """Verify database connection. Requires running Docker container with Postgres."""
-    db = Database()
-
-    status, _ = db.get_db_status(False)
-    assert status is True
-
-
 def test_db_init_defaults(monkeypatch):
     """Database should fall back to env variables or hardcoded defaults."""
     # Mock environment variables to ensure predictable test behavior
@@ -63,3 +54,12 @@ def test_db_init_prioritizes_db_url(monkeypatch):
     assert str(db.port) == "8888"
     assert db.user == "url_user"
     assert db.name == "url_db"
+
+
+@pytest.mark.integration
+def test_db_conn():
+    """Verify database connection. Requires running Docker container with Postgres."""
+    db = Database()
+
+    status, _ = db.get_db_status(False)
+    assert status is True

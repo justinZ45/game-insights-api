@@ -255,14 +255,11 @@ The `gia` CLI manages the database and data ingestion directly from your termina
 ```bash
 
 ### Global Database Overrides
-By default, `gia` reads database credentials from your `.env` file or environment variables. However, you can override these dynamically for **any** command using global flags:
+By default, `gia` reads database credentials from your `.env` file or environment variables. However, you can override these dynamically for any command using global flags:
 
 # Force the CLI to connect to a database on a custom port or host
 gia --port 5433 db status
 gia --host staging-db-server --user admin db query games -c
-
-# Use a complete connection string override
-gia --db-url postgresql://test:test@localhost:5434/test_db db reset schema
 
 # Database connection
 gia db status                    # check if DB is reachable
