@@ -21,7 +21,7 @@ services:
 
   api:
     container_name: game-api
-    image: justinz37/game-insights-api:v1.0.0
+    image: justinz37/game-insights-api:latest
     restart: unless-stopped
     ports:
       - "8000:8000"
