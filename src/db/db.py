@@ -87,8 +87,6 @@ class Database:
             
             db_url = f"postgresql://{user}:{pw}@{h}:{p}/{name}"
 
-            print(db_url)
-
         return create_engine(db_url, echo=False, pool_pre_ping=True)
 
     def get_inspector(self):
