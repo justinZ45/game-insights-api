@@ -11,7 +11,7 @@ class GameInput(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
-    title: str = Field(alias="Title")
+    title: str = Field(alias="Title", min_length=1)
     features: Features = Field(alias="Features")
     metadata: Metadata = Field(alias="Metadata")
     metrics: Metrics = Field(alias="Metrics")

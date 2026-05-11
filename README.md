@@ -124,6 +124,7 @@ The ingestion pipeline expects a JSON file containing an array of game objects. 
 - `Sales` and `Used Price` must be non-negative and to 2 decimal places
 - `Year` must be between 1950 and the current year
 - `Genres` and `Publishers` support multiple values separated by `,` or `/`
+- `Title` must not be null or empty
 - Games that fail validation are skipped with a warning - the rest of the file continues ingesting
 
 ### The bundled dataset is sourced from the [CORGIS Dataset Project](https://corgis-edu.github.io/corgis/json/video_games/).
@@ -323,6 +324,28 @@ Returns a single game with full details including playtime statistics for all pl
 
 **Response:** full `GameResponse` object including nested `game_lengths`.
 
+
+#### `POST /games/`
+Creates a new game entry in the database. Natively maps the nested input JSON structure across your normalization tables, handles automated "Get or Create" routing for new unique Genres/Publishers, and auto-populates Game Playstyle statistics.
+
+**Request Body:** Follows the exact structure defined in [Input Data Format](#input-data-format).
+
+**Response:** Returns a full `GameResponse` payload containing a status code `201 Created` along with your assigned, database-generated `game_id`.
+
+**Error Handling / Edge Cases:**
+* **`422 Unprocessable Entity`**: Thrown instantly if data validation checks fail (e.g., empty string title, out-of-bounds review scores, wrong decimal place notation).
+* **`409 Conflict`**: Thrown if a duplicate record matching both the identical `Title` and `Console` combination already exists in the database.
+
+#### `DELETE /games/{game_id}`
+Deletes an entire game record from the database. 
+
+**Response:** Status code `204 No Content` indicating a successful deletion.
+
+**Cascading Safeguards:** Due to the relational schema configuring `ondelete="CASCADE"`, removing a game record safely cleans up and purges its linked, dependent `game_lengths`, `game_genres`, and `game_publishers` relational mappings without leaving orphaned foreign keys in your junction tables. Standalone entities inside the `genres` or `publishers` lookup lists remain preserved.
+
+**Error Handling:**
+* **`404 Not Found`**: Returned if the specified `game_id` does not exist in the database.
+
 ---
 
 ### Genres
@@ -340,6 +363,7 @@ Returns a single game with full details including playtime statistics for all pl
 | `GET` | `/publishers/{publisher_id}` | Get a single publisher by ID |
 
 ---
+
 
 ## Running Tests
 
@@ -372,4 +396,4 @@ Video game data sourced from the [CORGIS Dataset Project](https://corgis-edu.git
 
 ## Notes
 
-This project does not implement authentication, or create, update, delete functionality at this time. In a production environment, write endpoints (POST, PUT, DELETE) would be protected. The current implementation focuses on the data pipeline, ORM design, and read API as a working MVP.
+This project does not implement authentication at this time. In a production environment, write endpoints (POST, PUT, DELETE) would be protected. The current implementation focuses on the data pipeline, ORM design, and CRUD API as a working MVP.
