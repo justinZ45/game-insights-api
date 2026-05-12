@@ -87,7 +87,7 @@ The ingestion pipeline expects a JSON file containing an array of game objects. 
       "Online?": true
     },
     "Metadata": {
-      "Genres": "Action",
+      "Genres": "Action,Adventure",
       "Licensed?": true,
       "Publishers": "Nintendo",
       "Sequel?": true
