@@ -116,7 +116,7 @@ def delete_game(game_id: int, session: Session = Depends(get_db)):
 def create_game(game_data: GameInput, session: Session = Depends(get_db)):
     """
     Creates a new game.
-    Accepts your existing validated nested JSON (GameInput), unpacks it,
+    Accepts existing validated nested JSON (GameInput), unpacks it,
     and returns a clean, flattened GameResponse.
     """
     # Prevent

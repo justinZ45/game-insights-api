@@ -4,7 +4,7 @@ from src.api.routers import games, genres, publishers
 from contextlib import asynccontextmanager
 from src.api.dependencies import db
 from src.db.ingest import seed_from_url
-from src.cli.cli import CORGIS_URL  # Import your default URL constant
+from src.cli.cli import CORGIS_URL 
 import os
 
 
