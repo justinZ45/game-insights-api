@@ -336,6 +336,18 @@ Creates a new game entry in the database. Natively maps the nested input JSON st
 * **`422 Unprocessable Entity`**: Thrown instantly if data validation checks fail (e.g., empty string title, out-of-bounds review scores, wrong decimal place notation).
 * **`409 Conflict`**: Thrown if a duplicate record matching both the identical `Title` and `Console` combination already exists in the database.
 
+#### `PATCH /games/{game_id}`
+Partially updates an existing game record, its nested properties, lookup tables, and playstyle durations. 
+
+**Request Body:** A partial JSON object following the structure of your main schema. All fields and nested blocks are completely optional (e.g., you can send *only* a modified review score).
+
+**Response:** Returns the fully updated `GameResponse` payload reflecting your modifications along with a `200 OK` status code.
+
+
+**Error Handling:**
+* **`404 Not Found`**: Returned if the target `game_id` cannot be located in the PostgreSQL database.
+* **`422 Unprocessable Entity`**: Thrown if partial updates break field constraints.
+
 #### `DELETE /games/{game_id}`
 Deletes an entire game record from the database. 
 

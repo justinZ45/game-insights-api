@@ -11,7 +11,7 @@ from src.models.orm_models import (
     Genre,
     Publisher,
 )
-from src.models.pydantic_models import GameResponse, GameInput, GameSummary
+from src.models.pydantic_models import GameResponse, GameInput, GameSummary, GameUpdate
 from src.api.dependencies import get_db
 
 
@@ -220,3 +220,96 @@ def create_game(game_data: GameInput, session: Session = Depends(get_db)):
         raise HTTPException(
             status_code=500, detail=f"An unexpected database error occurred: {str(e)}"
         )
+
+
+
+@router.patch("/{game_id}", response_model=GameResponse)
+def update_game(game_id: int, update_data: GameUpdate, session: Session = Depends(get_db)):
+    """Partially updates an existing game and its nested properties dynamically."""
+    
+    game = session.execute(
+        select(Game).options(
+            selectinload(Game.genres),
+            selectinload(Game.publishers),
+            selectinload(Game.lengths),
+        ).where(Game.game_id == game_id)
+    ).scalar_one_or_none()
+
+    if not game:
+        raise HTTPException(status_code=404, detail=f"Game {game_id} not found")
+
+    try:
+        # Update Title directly
+        if update_data.title is not None:
+            game.title = update_data.title
+
+        # Update Features 
+        if update_data.features:
+            for key, val in update_data.features.model_dump(exclude_unset=True).items():
+                col_name = f"is_{key}" if hasattr(game, f"is_{key}") else key
+                setattr(game, col_name, val)
+
+        # Update Metrics 
+        for sub_model in [update_data.metrics, update_data.release]:
+            if sub_model:
+                for key, val in sub_model.model_dump(exclude_unset=True).items():
+                    setattr(game, key, val)
+
+        # Update Metadata
+        if update_data.metadata:
+            meta_dict = update_data.metadata.model_dump(exclude_unset=True)
+            
+            if "is_licensed" in meta_dict: game.is_licensed = meta_dict["is_licensed"]
+            if "is_sequel" in meta_dict: game.is_sequel = meta_dict["is_sequel"]
+
+            # Rewrite Genres if provided
+            if "genres" in meta_dict and meta_dict["genres"] is not None:
+                game.genres.clear()
+                session.flush()
+                for name in [g.strip() for g in meta_dict["genres"].split(",") if g.strip()]:
+                    genre = session.execute(select(Genre).where(Genre.name == name)).scalar_one_or_none() or Genre(name=name)
+                    game.genres.append(GameGenre(genre_id=genre.genre_id if genre.genre_id else session.add(genre) or session.flush() or genre.genre_id))
+
+            # Rewrite Publishers if provided
+            if "publishers" in meta_dict and meta_dict["publishers"] is not None:
+                game.publishers.clear()
+                session.flush()
+                for name in [p.strip() for p in meta_dict["publishers"].split(",") if p.strip()]:
+                    pub = session.execute(select(Publisher).where(Publisher.name == name)).scalar_one_or_none() or Publisher(name=name)
+                    game.publishers.append(GamePublisher(publisher_id=pub.publisher_id if pub.publisher_id else session.add(pub) or session.flush() or pub.publisher_id))
+
+        # Update Playstyle Lengths 
+        if update_data.length:
+            playstyles_map = {
+                "All PlayStyles": update_data.length.all_playstyles,
+                "Completionists": update_data.length.completionists,
+                "Main + Extras": update_data.length.main_extras,
+                "Main Story": update_data.length.main_story,
+            }
+            # Map Pydantic fields to actual database column names
+            len_map = {"average": "avg_hours", "leisure": "leisure_hours", "median": "median_hours", "rushed": "rushed_hours", "polled": "num_players_polled"}
+
+            for display_name, playstyle_data in playstyles_map.items():
+                if playstyle_data is not None:
+                    existing_length = next((l for l in game.lengths if l.playstyle == display_name), None)
+                    fields = playstyle_data.model_dump(exclude_unset=True)
+                    
+                    if existing_length:
+                        for pydantic_key, db_col in len_map.items():
+                            if pydantic_key in fields:
+                                setattr(existing_length, db_col, fields[pydantic_key])
+                    else:
+                        session.add(GameLength(
+                            game_id=game.game_id, playstyle=display_name,
+                            avg_hours=fields.get("average"), leisure_hours=fields.get("leisure"),
+                            median_hours=fields.get("median"), rushed_hours=fields.get("rushed"),
+                            num_players_polled=fields.get("polled")
+                        ))
+
+        session.commit()
+        session.refresh(game)
+        return game
+
+    except SQLAlchemyError as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")

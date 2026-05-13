@@ -9,3 +9,4 @@ from .api.game_response import GameResponse
 from .api.game_summary import GameSummary
 from .api.genre_response import GenreResponse
 from .api.publisher_response import PublisherResponse
+from .api.game_update import GameUpdate
