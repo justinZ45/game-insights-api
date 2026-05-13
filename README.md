@@ -1,6 +1,6 @@
 # game-insights-api
 
-A Python-based REST API for querying video game data, built as a project to explore FastAPI, SQLAlchemy, PostgreSQL, Docker, and data ingestion pipelines. The project ingests a real video game dataset and exposes it through a filterable, paginated API.
+A Python-based REST API for querying video game data, built as a project to explore FastAPI, SQLAlchemy, PostgreSQL, Docker, Pydantic, and data ingestion pipelines. The project ingests a real video game dataset and exposes it through a filterable, paginated API.
 
 ## Tech Stack
 
@@ -47,6 +47,7 @@ game-insights-api/
 │           ├── api/                     # API response schemas
 │           │   ├── game_response.py
 │           │   ├── game_summary.py
+│           │   ├── game_update.py
 │           │   ├── game_length_response.py
 │           │   ├── genre_response.py
 │           │   └── publisher_response.py
@@ -69,6 +70,7 @@ game-insights-api/
 ├── Dockerfile                           # containerizes the FastAPI app
 ├── compose.yaml                         # orchestrates app + postgres
 ├── pyproject.toml
+├── poetry.lock
 ├── .env.example                         # template - committed, no real values
 ```
 
